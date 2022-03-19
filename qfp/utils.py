@@ -5,8 +5,13 @@ from numpy.lib import stride_tricks
 from scipy.ndimage.filters import maximum_filter, minimum_filter
 from bisect import bisect_left
 from collections import namedtuple
-from itertools import izip
 from heapq import nlargest
+
+# try:
+#     from itertools import izip
+# except ImportError:  # python 3.x
+#     izip = zip
+#     xrange = range
 
 
 def stft(samples, framesize=1024, hopsize=32):
@@ -48,7 +53,7 @@ def find_peaks(spec, maxWidth, maxHeight, minWidth=3, minHeight=3):
     peaks = ((spec == maxima) == (maxima != minima))
     # todo: parabolic interpolation
     x, y = np.nonzero(peaks)
-    namedpeaks = [Peak(p[0], p[1]) for p in izip(x, y)]
+    namedpeaks = [Peak(p[0], p[1]) for p in zip(x, y)]
     return namedpeaks
 
 
@@ -60,7 +65,7 @@ def n_strongest(spec, quads, n):
     strongest = []
     partitions = _find_partitions(quads)
     key = lambda p: (spec[p.C.x][p.C.y] + spec[p.D.x][p.D.y])
-    for i in xrange(1, len(partitions)):
+    for i in range(1, len(partitions)):
         start = partitions[i - 1]
         end = partitions[i]
         strongest += nlargest(n, quads[start:end], key)
@@ -76,7 +81,7 @@ def _find_partitions(quads, l=250):
     num_partitions = last_x // l
     # creates a tuple of same form as the Quad namedtuple for bisecting
     q = lambda x: ((x,), (), (), ())
-    partitions = [b_l(quads, q(i * l)) for i in xrange(num_partitions)]
+    partitions = [b_l(quads, q(i * l)) for i in range(num_partitions)]
     partitions.append(len(quads))
     return partitions
 

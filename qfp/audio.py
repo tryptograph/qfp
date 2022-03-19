@@ -1,6 +1,7 @@
 from pydub import AudioSegment
 
 
+
 def load_audio(path, downsample=True, normalize=False, target_dBFS=-20.0, snip=None):
     """
     Creates array of samples from input audio file
@@ -18,6 +19,8 @@ def load_audio(path, downsample=True, normalize=False, target_dBFS=-20.0, snip=N
     """if snip > audio.duration_seconds:
         raise InvalidAudioLength(
             "Provided snip length is longer than audio file")"""
+    # if (audio.duration_seconds < 120):
+    #     audio =  audio + AudioSegment.silent(duration=120000)
     if snip is not None:
         milliseconds = snip * 1000
         audio = audio[:milliseconds]
@@ -40,3 +43,4 @@ def _normalize(audio, target_dBFS):
     """
     change_in_dBFS = target_dBFS - audio.dBFS
     return audio.apply_gain(change_in_dBFS)
+

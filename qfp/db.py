@@ -7,10 +7,12 @@ import sqlite3
 import math
 import operator
 
-try:
-    from itertools import izip
-except:
-    izip = zip
+
+# try:
+#     # Python 3
+#     from itertools import zip_longest
+# except ImportError:
+#     from itertools import izip_longest as zip_longest
 
 
 class QfpDB:
@@ -82,7 +84,7 @@ class QfpDB:
             if not self._record_exists(c, title):
                 recordid = self._store_record(c, title)
                 self._store_peaks(c, fp, recordid)
-                for qHash, qQuad in izip(fp.hashes, fp.strongest):
+                for qHash, qQuad in zip(fp.hashes, fp.strongest):
                     self._store_hash(c, qHash)
                     self._store_quad(c, qQuad, recordid)
         conn.commit()
@@ -118,7 +120,7 @@ class QfpDB:
         """
         for x, y in fp.peaks:
             c.execute("""INSERT INTO Peaks
-                         VALUES (?,?,?)""", (recordid, x, y))
+                         VALUES (?,?,?)""", (recordid, x.item(), y.item()))
 
     def _store_hash(self, c, h):
         """
@@ -126,15 +128,17 @@ class QfpDB:
         """
         c.execute("""INSERT INTO Hashes
                      VALUES (null,?,?,?,?,?,?,?,?)""",
-                  (h[0], h[0], h[1], h[1], h[2], h[2], h[3], h[3]))
+                  (h[0].item(), h[0].item(), h[1].item(), h[1].item(),
+                   h[2].item(), h[2].item(), h[3].item(), h[3].item()))
 
     def _store_quad(self, c, q, recordid):
         """
         Inserts given quad into the Quads table
         """
         hashid = c.lastrowid
-        values = (hashid, recordid, q.A.x, q.A.y, q.C.x, q.C.y,
-                  q.D.x, q.D.y, q.B.x, q.B.y)
+        values = (hashid, recordid, q.A.x.item(), q.A.y.item(),
+                  q.C.x.item(), q.C.y.item(), q.D.x.item(), q.D.y.item(),
+                  q.B.x.item(), q.B.y.item())
         c.execute("""INSERT INTO Quads
                      VALUES (?,?,?,?,?,?,?,?,?,?)""", values)
 
@@ -166,18 +170,20 @@ class QfpDB:
         conn = sqlite3.connect(self.path)
         c = conn.cursor()
         filtered = defaultdict(list)
-        for qHash, qQuad in izip(fp.hashes, fp.strongest):
+        for qHash, qQuad in zip(fp.hashes, fp.strongest):
             self._radius_nn(c, qHash)
             with np.errstate(divide='ignore', invalid='ignore'):
                 self._filter_candidates(conn, c, qQuad, filtered)
-        binned = {k: self._bin_times(v) for k, v in filtered.items()}
-        results = {k: self._scales(v)
-                   for k, v in binned.items() if len(v) >= 4}
-        mc = [self.MatchCandidate(k, a[0], a[1], a[2][0], a[2][1])
-              for k, v in results.items() for a in v]
-        c.close()
-        conn.close()
-        return mc
+        try:
+            binned = {k: self._bin_times(v) for k, v in filtered.items()}
+            results = {k: self._scales(v) for k, v in binned.items() if len(v[list(v.keys())[0]]) >= 4}
+            mc = [self.MatchCandidate(k, a[0], a[1], a[2][0], a[2][1])
+                  for k, v in results.items() for a in v]
+            c.close()
+            conn.close()
+            return mc
+        except IndexError as Error:
+            print('THIS IS THE INDEX ERROR, MATCH EXISTS BUT CANNOT INDEX!')
 
     def _radius_nn(self, c, h, e=0.01):
         """
@@ -309,9 +315,9 @@ class QfpDB:
         for rPeak in rPeaks:
             rPeak = (rPeak.x - mc.offset, rPeak.y)
             rPeakScaled = self.Peak(rPeak[0] / mc.sFreq, rPeak[1] / mc.sTime)
-            lBound = bisect_left(qPeaks, (rPeakScaled.x - eX, None))
-            rBound = bisect_right(qPeaks, (rPeakScaled.x + eX, None))
-            for i in xrange(lBound, rBound):
+            lBound = bisect_left(qPeaks, (rPeakScaled.x - eX, 0))
+            rBound = bisect_right(qPeaks, (rPeakScaled.x + eX, 0))
+            for i in range(lBound, rBound):
                 if not rPeakScaled.y - eY <= qPeaks[i].y <= rPeakScaled.y + eY:
                     continue
                 else:

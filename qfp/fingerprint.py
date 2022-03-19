@@ -33,7 +33,8 @@ class fpType:
     """
     #             Q    R    C    W    H
     Reference = (9, 200, 325, 150,  75)
-    Query = (500, 345, 360, 125,  60)
+    Query = (9, 200, 325, 150,  75)
+    # Query = (500, 345, 360, 125, 60)  #Original query parameters
 
 
 class Fingerprint:
@@ -69,6 +70,7 @@ class ReferenceFingerprint(Fingerprint):
 class QueryFingerprint(Fingerprint):
 
     def __init__(self, path):
+        self.matches = None
         self.fp_type = fpType.Query
         Fingerprint.__init__(self, path, fp_type=self.fp_type)
 
