@@ -1,11 +1,14 @@
 from __future__ import division
 
+import hashlib
+
 import numpy as np
 from numpy.lib import stride_tricks
 from scipy.ndimage.filters import maximum_filter, minimum_filter
 from bisect import bisect_left
 from collections import namedtuple
 from heapq import nlargest
+from pydub import AudioSegment
 
 # try:
 #     from itertools import izip
@@ -97,3 +100,22 @@ def generate_hash(quad):
     cDash = (C[0] / B[0], C[1] / B[1])
     dDash = (D[0] / B[0], D[1] / B[1])
     return cDash + dDash
+
+# def generate_file_hash(path, block_size: int = 4096):
+#     audio = AudioSegment.from_file(path)
+#     s = sha1()
+#     with open(audio, "rb") as f:
+#         while True:
+#             buf = f.read(block_size)
+#             if not buf:
+#                 break
+#             s.update(buf)
+#     return s.hexdigest().upper()
+#     # print(s.hexdigest().upper())
+
+
+# def generate_file_hash():
+#     # audio = AudioSegment.from_file(path)
+#     hash_obj = hashlib.sha1()
+#     hexa_value = hash_obj.hexdigest()
+#     return hexa_value

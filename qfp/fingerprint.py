@@ -3,6 +3,7 @@ from __future__ import division
 from .audio import load_audio
 from .utils import stft, find_peaks, generate_hash, n_strongest
 from .quads import find_quads
+import hashlib
 
 
 class fpType:
@@ -32,10 +33,11 @@ class fpType:
     result is an int for epsilon of .2 (20% change in speed/tempo)
     """
     #             Q    R    C    W    H
-    Reference = (9, 200, 325, 150,  75)
-    Query = (9, 200, 325, 150,  75)
-    # Query = (500, 345, 360, 125, 60)  #Original query parameters
-
+    Reference = (9, 200, 345, 150,  75)
+    # Query =     (9, 200, 345, 150,  75)
+    # Query =  (20, 325, 360, 125, 60)
+    Query = (20, 325, 360, 150, 60)
+    # Query = (500, 345, 360, 125, 60) #Original parameters
 
 class Fingerprint:
 
@@ -59,12 +61,24 @@ class Fingerprint:
         self.strongest = n_strongest(spectrogram, quads, q)
         self.hashes = [generate_hash(q) for q in self.strongest]
 
+    def create_file_hash(self, block_size: int = 4096):
+        sha1 = hashlib.sha1()
+        with open(self.path, "rb") as f:
+            while True:
+                buf = f.read(block_size)
+                if not buf:
+                    break
+                sha1.update(buf)
+        return sha1.hexdigest().upper()
+
 
 class ReferenceFingerprint(Fingerprint):
 
     def __init__(self, path):
         self.fp_type = fpType.Reference
         Fingerprint.__init__(self, path, fp_type=self.fp_type)
+
+
 
 
 class QueryFingerprint(Fingerprint):
@@ -75,4 +89,4 @@ class QueryFingerprint(Fingerprint):
         Fingerprint.__init__(self, path, fp_type=self.fp_type)
 
     def create(self):
-        Fingerprint.create(self, snip=15)
+        Fingerprint.create(self, snip=10)

@@ -2,17 +2,19 @@ from __future__ import division, print_function
 from bisect import bisect_left, bisect_right
 from collections import defaultdict, namedtuple
 from qfp.fingerprint import fpType
+from qfp.fingerprint import ReferenceFingerprint
 import numpy as np
 import sqlite3
 import math
 import operator
+# from itertools import zip_longest
 
 
 # try:
-#     # Python 3
-#     from itertools import zip_longest
-# except ImportError:
-#     from itertools import izip_longest as zip_longest
+#     from itertools import izip
+# except:
+#     zip = zip_longest
+#     xrange = range
 
 
 class QfpDB:
@@ -45,7 +47,8 @@ class QfpDB:
             CREATE TABLE
             IF NOT EXISTS Records(
                 id INTEGER PRIMARY KEY,
-                title TEXT);
+                title TEXT,
+                FOREIGN KEY(id) REFERENCES FileHash(id));
             CREATE TABLE
             IF NOT EXISTS Quads(
                 hashid INTEGER PRIMARY KEY,
@@ -61,6 +64,10 @@ class QfpDB:
                 recordid INTEGER, X INTEGER, Y INTEGER,
                 PRIMARY KEY(recordid, X, Y),
                 FOREIGN KEY(recordid) REFERENCES Records(id));""")
+            # CREATE TABLE
+            # IF NOT EXISTS FileHash(
+            #     FileHashId INTEGER PRIMARY KEY);""")
+
 
     def _create_named_tuples(self):
         self.Peak = namedtuple('Peak', ['x', 'y'])
@@ -68,6 +75,7 @@ class QfpDB:
         mcNames = ['recordid', 'offset', 'num_matches', 'sTime', 'sFreq']
         self.MatchCandidate = namedtuple('MatchCandidate', mcNames)
         self.Match = namedtuple('Match', ['record', 'offset', 'vScore'])
+
 
     """
     STORING FINGERPRINTS
@@ -84,9 +92,22 @@ class QfpDB:
             if not self._record_exists(c, title):
                 recordid = self._store_record(c, title)
                 self._store_peaks(c, fp, recordid)
+                # self._store_file_hash(c)
                 for qHash, qQuad in zip(fp.hashes, fp.strongest):
                     self._store_hash(c, qHash)
                     self._store_quad(c, qQuad, recordid)
+        conn.commit()
+        conn.close()
+
+    def store_file_hash(self, path):
+        with sqlite3.connect(self.path) as conn:
+            c = conn.cursor()
+            c.execute("""CREATE TABLE
+            IF NOT EXISTS FileHash(
+            id INTEGER PRIMARY KEY,
+            hash INT);""")
+            c.execute("""INSERT INTO FileHash VALUES (null, ?)""", (path,))
+            return c.lastrowid
         conn.commit()
         conn.close()
 
@@ -122,6 +143,7 @@ class QfpDB:
             c.execute("""INSERT INTO Peaks
                          VALUES (?,?,?)""", (recordid, x.item(), y.item()))
 
+
     def _store_hash(self, c, h):
         """
         Inserts given hash into QfpDB's Hashes table
@@ -130,6 +152,7 @@ class QfpDB:
                      VALUES (null,?,?,?,?,?,?,?,?)""",
                   (h[0].item(), h[0].item(), h[1].item(), h[1].item(),
                    h[2].item(), h[2].item(), h[3].item(), h[3].item()))
+
 
     def _store_quad(self, c, q, recordid):
         """
@@ -174,16 +197,13 @@ class QfpDB:
             self._radius_nn(c, qHash)
             with np.errstate(divide='ignore', invalid='ignore'):
                 self._filter_candidates(conn, c, qQuad, filtered)
-        try:
-            binned = {k: self._bin_times(v) for k, v in filtered.items()}
-            results = {k: self._scales(v) for k, v in binned.items() if len(v[list(v.keys())[0]]) >= 4}
-            mc = [self.MatchCandidate(k, a[0], a[1], a[2][0], a[2][1])
-                  for k, v in results.items() for a in v]
-            c.close()
-            conn.close()
-            return mc
-        except IndexError as Error:
-            print('THIS IS THE INDEX ERROR, MATCH EXISTS BUT CANNOT INDEX!')
+        binned = {k: self._bin_times(v) for k, v in filtered.items()}
+        results = {k: self._scales(v) for k, v in binned.items() if len(v[list(v.keys())[0]]) >= 4}
+        mc = [self.MatchCandidate(k, a[0], a[1], a[2][0], a[2][1])
+              for k, v in results.items() for a in v]
+        c.close()
+        conn.close()
+        return mc
 
     def _radius_nn(self, c, h, e=0.01):
         """
@@ -334,3 +354,4 @@ class QfpDB:
                       WHERE id = ?""", (recordid,))
         title = c.fetchone()
         return title[0]
+
