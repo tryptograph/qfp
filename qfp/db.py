@@ -7,14 +7,6 @@ import numpy as np
 import sqlite3
 import math
 import operator
-# from itertools import zip_longest
-
-
-# try:
-#     from itertools import izip
-# except:
-#     zip = zip_longest
-#     xrange = range
 
 
 class QfpDB:
@@ -122,30 +114,7 @@ class QfpDB:
         conn.commit()
         conn.close()
 
-    # def store_file_hash(self, path):
-    #     with sqlite3.connect(self.path) as conn:
-    #         c = conn.cursor()
-    #         if not self._file_hash_exists(c, hashes):
-    #             id = self._insert_file_hash(c, path)
-    #     conn.commit()
-    #     conn.close()
-
-    # def _file_hash_exists(self, c, hashes):
-    #     c.execute("""SELECT id
-    #                    FROM FileHash
-    #                  WHERE hashes = ?""", (hashes,))
-    #     hashes = c.fetchone()
-    #     if hashes is None:
-    #         return False
-    #     else:
-    #         print("FileHash already exists...")
-    #     return True
-
-    # def _insert_file_hash(self, c, path):
-    #     c.execute("""INSERT INTO FileHash VALUES (null, ?)""", (path,))
-    #     return c.lastrowid
-
-
+        
     def _record_exists(self, c, title):
         """
         Returns True/False depending on existence of a song title
