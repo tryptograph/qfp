@@ -64,9 +64,7 @@ class QfpDB:
                 recordid INTEGER, X INTEGER, Y INTEGER,
                 PRIMARY KEY(recordid, X, Y),
                 FOREIGN KEY(recordid) REFERENCES Records(id));""")
-            # CREATE TABLE
-            # IF NOT EXISTS FileHash(
-            #     FileHashId INTEGER PRIMARY KEY);""")
+
 
 
     def _create_named_tuples(self):
@@ -100,16 +98,53 @@ class QfpDB:
         conn.close()
 
     def store_file_hash(self, path):
+        """
+        Creates FileHash table with hash column.
+        Checks the db if hash exists, and inserts into column if not
+        and returns lastrowid that coincides with id through db.
+        If FileHash exists it does not store duplicates and prints,
+        'File hash already exists'...
+        """
         with sqlite3.connect(self.path) as conn:
             c = conn.cursor()
             c.execute("""CREATE TABLE
             IF NOT EXISTS FileHash(
             id INTEGER PRIMARY KEY,
-            hash INT);""")
-            c.execute("""INSERT INTO FileHash VALUES (null, ?)""", (path,))
-            return c.lastrowid
+            hashes INT,
+            title);""")
+            hashes = c.fetchone()
+            if hashes is not None:
+                c.execute("""INSERT INTO FileHash VALUES (null, ?)""", (path,))
+                return c.lastrowid
+            else:
+                print("File hash already exists...")
+                return True
         conn.commit()
         conn.close()
+
+    # def store_file_hash(self, path):
+    #     with sqlite3.connect(self.path) as conn:
+    #         c = conn.cursor()
+    #         if not self._file_hash_exists(c, hashes):
+    #             id = self._insert_file_hash(c, path)
+    #     conn.commit()
+    #     conn.close()
+
+    # def _file_hash_exists(self, c, hashes):
+    #     c.execute("""SELECT id
+    #                    FROM FileHash
+    #                  WHERE hashes = ?""", (hashes,))
+    #     hashes = c.fetchone()
+    #     if hashes is None:
+    #         return False
+    #     else:
+    #         print("FileHash already exists...")
+    #     return True
+
+    # def _insert_file_hash(self, c, path):
+    #     c.execute("""INSERT INTO FileHash VALUES (null, ?)""", (path,))
+    #     return c.lastrowid
+
 
     def _record_exists(self, c, title):
         """
