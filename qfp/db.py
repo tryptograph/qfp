@@ -39,8 +39,7 @@ class QfpDB:
             CREATE TABLE
             IF NOT EXISTS Records(
                 id INTEGER PRIMARY KEY,
-                title TEXT,
-                FOREIGN KEY(id) REFERENCES FileHash(id));
+                title TEXT);
             CREATE TABLE
             IF NOT EXISTS Quads(
                 hashid INTEGER PRIMARY KEY,
@@ -55,9 +54,12 @@ class QfpDB:
             IF NOT EXISTS Peaks(
                 recordid INTEGER, X INTEGER, Y INTEGER,
                 PRIMARY KEY(recordid, X, Y),
-                FOREIGN KEY(recordid) REFERENCES Records(id));""")
-
-
+                FOREIGN KEY(recordid) REFERENCES Records(id));
+            CREATE TABLE
+            IF NOT EXISTS FileHash(
+                id INTEGER PRIMARY KEY,
+                fhash INT,
+                FOREIGN KEY(id) REFERENCES Records(id));""")
 
     def _create_named_tuples(self):
         self.Peak = namedtuple('Peak', ['x', 'y'])
@@ -66,55 +68,53 @@ class QfpDB:
         self.MatchCandidate = namedtuple('MatchCandidate', mcNames)
         self.Match = namedtuple('Match', ['record', 'offset', 'vScore'])
 
-
     """
     STORING FINGERPRINTS
     """
 
-    def store(self, fp, title):
+    def store(self, fp, title, fhash):
         """
-        Stores a reference fingerprint in the db
+        Stores a reference fingerprint in the db,
+        along with the sha1 hahs of the audio file.
         """
         if fp.fp_type != fpType.Reference:
             raise TypeError("May only store reference fingerprints in db")
         with sqlite3.connect(self.path) as conn:
             c = conn.cursor()
-            if not self._record_exists(c, title):
+            if not (self._record_exists(c, title) and self._file_hash_exists(c, fhash)):
                 recordid = self._store_record(c, title)
                 self._store_peaks(c, fp, recordid)
-                # self._store_file_hash(c)
+                self._insert_file_hash(c, fhash)
                 for qHash, qQuad in zip(fp.hashes, fp.strongest):
                     self._store_hash(c, qHash)
                     self._store_quad(c, qQuad, recordid)
         conn.commit()
         conn.close()
 
-    def store_file_hash(self, path):
+    def _file_hash_exists(self, c, fhash):
         """
-        Creates FileHash table with hash column.
-        Checks the db if hash exists, and inserts into column if not
-        and returns lastrowid that coincides with id through db.
-        If FileHash exists it does not store duplicates and prints,
-        'File hash already exists'...
+        Returns True?False depending on existence of a file hash
+        in the QfpDB to avoid collisions with sha1 hash
         """
-        with sqlite3.connect(self.path) as conn:
-            c = conn.cursor()
-            c.execute("""CREATE TABLE
-            IF NOT EXISTS FileHash(
-            id INTEGER PRIMARY KEY,
-            hashes INT,
-            title);""")
-            hashes = c.fetchone()
-            if hashes is not None:
-                c.execute("""INSERT INTO FileHash VALUES (null, ?)""", (path,))
-                return c.lastrowid
-            else:
-                print("File hash already exists...")
-                return True
-        conn.commit()
-        conn.close()
+        c.execute("""SELECT id 
+                      FROM FileHash
+                      WHERE Fhash = ?;""", (fhash,))
+        file_hash = c.fetchone()
+        if file_hash is None:
+            return False
+        else:
+            print("file hash already exists...")
+            return True
 
-        
+    def _insert_file_hash(self, c, fhash):
+        """
+        Inserts a sha1 hash of the audio file provided during referencing,
+        then returns its primary key.
+        """
+        c.execute("""INSERT INTO FileHash
+                        VALUES (null,?)""", (fhash,))
+        return c.lastrowid
+
     def _record_exists(self, c, title):
         """
         Returns True/False depending on existence of a song title
@@ -147,7 +147,6 @@ class QfpDB:
             c.execute("""INSERT INTO Peaks
                          VALUES (?,?,?)""", (recordid, x.item(), y.item()))
 
-
     def _store_hash(self, c, h):
         """
         Inserts given hash into QfpDB's Hashes table
@@ -156,7 +155,6 @@ class QfpDB:
                      VALUES (null,?,?,?,?,?,?,?,?)""",
                   (h[0].item(), h[0].item(), h[1].item(), h[1].item(),
                    h[2].item(), h[2].item(), h[3].item(), h[3].item()))
-
 
     def _store_quad(self, c, q, recordid):
         """
@@ -182,7 +180,8 @@ class QfpDB:
         fp.match_candidates = self._find_match_candidates(fp)
         conn = sqlite3.connect(self.path)
         c = conn.cursor()
-        fp.matches = [m for m in [self._validate_match(fp, c, mc) for mc in fp.match_candidates] if m.vScore >= vThreshold]
+        fp.matches = [m for m in [self._validate_match(fp, c, mc) for mc in fp.match_candidates] if
+                      m.vScore >= vThreshold]
         c.close()
         conn.close()
 
@@ -219,10 +218,10 @@ class QfpDB:
                         AND minX >= ? AND maxX <= ?
                         AND minY >= ? AND maxY <= ?
                         AND minZ >= ? AND maxZ <= ?""",
-                  (h[0] - e,       h[0] + e,
-                   h[1] - e,       h[1] + e,
-                   h[2] - e,       h[2] + e,
-                   h[3] - e,       h[3] + e))
+                  (h[0] - e, h[0] + e,
+                   h[1] - e, h[1] + e,
+                   h[2] - e, h[2] + e,
+                   h[3] - e, h[3] + e))
 
     def _filter_candidates(self, conn, c, qQuad, results, e=0.2, eFine=1.8):
         """
@@ -358,4 +357,5 @@ class QfpDB:
                       WHERE id = ?""", (recordid,))
         title = c.fetchone()
         return title[0]
+
 
