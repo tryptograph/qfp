@@ -98,7 +98,7 @@ class QfpDB:
         """
         c.execute("""SELECT id 
                       FROM FileHash
-                      WHERE Fhash = ?;""", (fhash,))
+                      WHERE fhash = ?;""", (fhash,))
         file_hash = c.fetchone()
         if file_hash is None:
             return False
