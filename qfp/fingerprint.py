@@ -4,7 +4,8 @@ from .audio import load_audio
 from .utils import stft, find_peaks, generate_hash, n_strongest
 from .quads import find_quads
 import hashlib
-
+import librosa
+import numpy as np
 
 class fpType:
     """
@@ -71,14 +72,18 @@ class Fingerprint:
                 sha1.update(buf)
         return sha1.hexdigest().upper()
 
+    def bpm_detector(self):
+        y, sr = librosa.load(self.path, sr=1600, mono=True)
+        tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
+        return round(tempo)
+        # print("Tempo: {:.2f}".format(tempo))
+
 
 class ReferenceFingerprint(Fingerprint):
 
     def __init__(self, path):
         self.fp_type = fpType.Reference
         Fingerprint.__init__(self, path, fp_type=self.fp_type)
-
-
 
 
 class QueryFingerprint(Fingerprint):
@@ -90,3 +95,9 @@ class QueryFingerprint(Fingerprint):
 
     def create(self):
         Fingerprint.create(self, snip=10)
+
+
+
+
+
+
