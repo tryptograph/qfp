@@ -6,6 +6,7 @@ from .quads import find_quads
 import hashlib
 import librosa
 import numpy as np
+import warnings as w
 
 class fpType:
     """
@@ -37,7 +38,7 @@ class fpType:
     Reference = (9, 200, 345, 150,  75)
     # Query =     (9, 200, 345, 150,  75)
     # Query =  (20, 325, 360, 125, 60)
-    Query = (20, 325, 360, 150, 60)
+    Query = (20, 325, 360, 150, 75)
     # Query = (500, 345, 360, 125, 60) #Original parameters
 
 class Fingerprint:
@@ -73,17 +74,20 @@ class Fingerprint:
         return sha1.hexdigest().upper()
 
     def bpm_detector(self):
-        y, sr = librosa.load(self.path, sr=1600, mono=True)
-        tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
+        w.filterwarnings('ignore')
+        y = librosa.load(self.path, sr=16000, mono=True)
+        y = y[0]
+        tempo, beat_frames = librosa.beat.beat_track(y)
         return round(tempo)
         # print("Tempo: {:.2f}".format(tempo))
-
 
 class ReferenceFingerprint(Fingerprint):
 
     def __init__(self, path):
         self.fp_type = fpType.Reference
         Fingerprint.__init__(self, path, fp_type=self.fp_type)
+
+
 
 
 class QueryFingerprint(Fingerprint):
@@ -95,9 +99,3 @@ class QueryFingerprint(Fingerprint):
 
     def create(self):
         Fingerprint.create(self, snip=10)
-
-
-
-
-
-
